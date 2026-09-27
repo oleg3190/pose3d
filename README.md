@@ -1,20 +1,20 @@
 # PoseLab
 
-A self-contained SetPose-style personal pose reference landing page.
+A single-page personal 3D pose reference editor.
 
-## No runtime CDN dependency
+## Run
 
-Open `index.html` directly or serve the folder with any static web server. For a simple local server: `python3 -m http.server 4173`. The mannequin renderer is self-contained Canvas2D, so the page works without internet access.
+Open `index.html` through a static web server. The page uses Three.js and OrbitControls from jsDelivr at runtime, so the editor needs internet access to load its 3D engine.
 
 ## Features
 
-- pseudo-3D articulated mannequin with orbit + zoom
+- articulated human-style mannequin built from Three.js primitives
 - Basic / Male / Female / Child proportions
 - Bend / Tilt / Rotate controls
-- joint-specific human-range limits with coupled shoulder/hip constraints
-- presets and constrained random poses
-- local save + shareable URL
+- conservative joint limits with dynamic shoulder twist limits
+- constrained random poses and presets
+- local save and shareable pose URLs
 - PNG export
-- props, figure color and scene controls
+- props, figure color, lighting and orbit camera
 
-This project is an independent implementation inspired by the interaction pattern of 3D pose-reference tools; it does not bundle SetPose's proprietary code or assets.
+The implementation is independent of SetPose's proprietary source code and assets.
