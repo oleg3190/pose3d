@@ -51,11 +51,77 @@ label{display:block;color:var(--muted);font-size:11px;margin:10px 0 6px}select{w
 </main>
 <section id="features"></section>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script type="module">
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
-import {OrbitControls} from "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js";
+<script src="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.min.js"></script>
+<script>
+class OrbitControlsLite{
+  constructor(object,domElement){
+    this.object=object;
+    this.domElement=domElement;
+    this.target=new THREE.Vector3();
+    this.enableDamping=true;
+    this.dampingFactor=.14;
+    this.minDistance=2;
+    this.maxDistance=40;
+    this._spherical=new THREE.Spherical();
+    this._goal=new THREE.Spherical();
+    this._drag=null;
+    this.sync();
+    domElement.style.touchAction="none";
+    domElement.addEventListener("contextmenu",e=>e.preventDefault());
+    domElement.addEventListener("pointerdown",e=>this._onDown(e));
+    domElement.addEventListener("pointermove",e=>this._onMove(e));
+    domElement.addEventListener("pointerup",e=>this._onUp(e));
+    domElement.addEventListener("pointercancel",e=>this._onUp(e));
+    domElement.addEventListener("wheel",e=>this._onWheel(e),{passive:false});
+  }
+  _onDown(e){
+    if(e.button!==0)return;
+    this._drag={id:e.pointerId,x:e.clientX,y:e.clientY,theta:this._goal.theta,phi:this._goal.phi};
+    this.domElement.setPointerCapture?.(e.pointerId);
+  }
+  _onMove(e){
+    if(!this._drag||e.pointerId!==this._drag.id)return;
+    const dx=e.clientX-this._drag.x,dy=e.clientY-this._drag.y;
+    this._goal.theta=this._drag.theta-dx*.005;
+    this._goal.phi=THREE.MathUtils.clamp(this._drag.phi-dy*.005,.12,Math.PI-.12);
+  }
+  _onUp(e){
+    if(this._drag&&e.pointerId===this._drag.id){
+      this.domElement.releasePointerCapture?.(e.pointerId);
+      this._drag=null;
+    }
+  }
+  _onWheel(e){
+    e.preventDefault();
+    const factor=Math.exp(e.deltaY*.0012);
+    this._goal.radius=THREE.MathUtils.clamp(this._goal.radius*factor,this.minDistance,this.maxDistance);
+  }
+  sync(){
+    const offset=this.object.position.clone().sub(this.target);
+    this._spherical.setFromVector3(offset);
+    this._spherical.phi=THREE.MathUtils.clamp(this._spherical.phi,.12,Math.PI-.12);
+    this._spherical.radius=THREE.MathUtils.clamp(this._spherical.radius,this.minDistance,this.maxDistance);
+    this._goal.copy(this._spherical);
+    this.update(true);
+    return this;
+  }
+  update(force=false){
+    const changed=force||this._spherical.theta!==this._goal.theta||this._spherical.phi!==this._goal.phi||this._spherical.radius!==this._goal.radius;
+    if(this.enableDamping&&!force){
+      this._spherical.theta=THREE.MathUtils.lerp(this._spherical.theta,this._goal.theta,this.dampingFactor);
+      this._spherical.phi=THREE.MathUtils.lerp(this._spherical.phi,this._goal.phi,this.dampingFactor);
+      this._spherical.radius=THREE.MathUtils.lerp(this._spherical.radius,this._goal.radius,this.dampingFactor);
+    }else{
+      this._spherical.copy(this._goal);
+    }
+    this._spherical.radius=THREE.MathUtils.clamp(this._spherical.radius,this.minDistance,this.maxDistance);
+    this.object.position.setFromSpherical(this._spherical).add(this.target);
+    this.object.lookAt(this.target);
+    return changed;
+  }
+}
 
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const $=s=>document.querySelector(s), $=s=>[...document.querySelectorAll(s)];
 const state={engine:null,fig:null,model:"basic",axis:"bend",joint:"torso",prop:null};
 const LIMITS={torso:{bend:[-25,25],tilt:[-20,20],turn:[-40,40]},head:{bend:[-30,40],tilt:[-25,25],turn:[-70,70]},lShoulder:{bend:[-50,140],tilt:[-35,95],turn:[-80,80]},rShoulder:{bend:[-50,140],tilt:[-35,95],turn:[-80,80]},lElbow:{bend:[0,145],tilt:[0,0],turn:[0,0]},rElbow:{bend:[0,145],tilt:[0,0],turn:[0,0]},lWrist:{bend:[-70,70],tilt:[-30,30],turn:[-45,45]},rWrist:{bend:[-70,70],tilt:[-30,30],turn:[-45,45]},lHip:{bend:[-30,115],tilt:[-35,35],turn:[-35,35]},rHip:{bend:[-30,115],tilt:[-35,35],turn:[-35,35]},lKnee:{bend:[0,145],tilt:[0,0],turn:[0,0]},rKnee:{bend:[0,145],tilt:[0,0],turn:[0,0]},lAnkle:{bend:[-20,35],tilt:[-15,15],turn:[-10,10]},rAnkle:{bend:[-20,35],tilt:[-15,15],turn:[-10,10]}};
 const MODEL={basic:{head:1,neck:.35,torso:1.55,pelvis:.45,upperArm:.95,foreArm:.9,thigh:1.05,shin:1},male:{head:1.02,neck:.38,torso:1.7,pelvis:.48,upperArm:1.05,foreArm:1,thigh:1.12,shin:1.05},female:{head:.98,neck:.34,torso:1.52,pelvis:.52,upperArm:.9,foreArm:.86,thigh:1.02,shin:.98},child:{head:1.15,neck:.25,torso:1,pelvis:.32,upperArm:.68,foreArm:.62,thigh:.72,shin:.68}};
@@ -79,16 +145,17 @@ for(const side of [-1,1]){const s=side<0?"l":"r";const sh=createLimb(shoulders,s
 const parts={torso,head,lShoulder:shoulders.children[0],lElbow:shoulders.children[0].children[0],lWrist:shoulders.children[0].children[0].children[0],rShoulder:shoulders.children[1],rElbow:shoulders.children[1].children[0],rWrist:shoulders.children[1].children[0].children[0],lHip:pelvis.children.find(x=>x.name==="lHip"),rHip:pelvis.children.find(x=>x.name==="rHip")};parts.lKnee=parts.lHip?.children[0];parts.rKnee=parts.rHip?.children[0];parts.lAnkle=parts.lKnee?.children[0];parts.rAnkle=parts.rKnee?.children[0];f.userData.parts=parts;state.fig=f;state.model=type;f.position.y=.02;state.engine.scene.add(f);$("#status").textContent="Ready";$("#status").className="status ready";$$("[data-model]").forEach(b=>b.classList.toggle("active",b.dataset.model===type));fitCamera();refreshAxis()}
 function setPreset(name){Object.values(state.fig.userData.parts).forEach(p=>p.rotation.set(0,0,0));presets[name](state.fig);clampFigure();fitCamera();refreshAxis();toast(name)}
 function randomPose(){for(const j of Object.keys(LIMITS)){for(const a of ["bend","tilt","turn"]){const p=part(j);if(!p)continue;const [min,max]=dynamicLimit(j,a);setV(state.fig,j,a,THREE.MathUtils.lerp(min,max,Math.random()))}}clampFigure();refreshAxis();toast("Random pose")}
-function fitCamera(){const b=new THREE.Box3().setFromObject(state.fig),s=b.getSize(new THREE.Vector3()),c=b.getCenter(new THREE.Vector3());state.engine.controls.target.copy(c);const d=Math.max(s.y/(2*Math.tan(THREE.MathUtils.degToRad(state.engine.camera.fov/2))),s.x*1.7);state.engine.camera.position.set(c.x,c.y,c.z+d*1.35);state.engine.controls.update()}
-function serialize(){const out={model:state.model,j:{}};for(const j of Object.keys(LIMITS)){const p=part(j);if(p)out.j[j]=["bend","tilt","turn"].map(a=>Math.round(getV(p,a)*10)/10)}return btoa(unescape(encodeURIComponent(JSON.stringify(out))))}
+function fitCamera(){const b=new THREE.Box3().setFromObject(state.fig),s=b.getSize(new THREE.Vector3()),c=b.getCenter(new THREE.Vector3());state.engine.controls.target.copy(c);const d=Math.max(s.y/(2*Math.tan(THREE.MathUtils.degToRad(state.engine.camera.fov/2))),s.x*1.7);state.engine.camera.position.set(c.x,c.y,c.z+d*1.35);state.engine.controls.sync()}
+function serialize(){const out={model:state.model,j:{}};for(const j of Object.keys(LIMITS)){const p=part(j);if(p)out.j[j]=["bend","tilt","turn"].map(a=>Math.round(getV(p,a)*10)/10)}return btoa(JSON.stringify(out))}
+function decodePose(value){return JSON.parse(atob(value))}
 function applyState(s){if(!s)return;build(s.model||"basic");for(const [j,v] of Object.entries(s.j||{})){const p=part(j);if(!p)continue;["bend","tilt","turn"].forEach((a,i)=>setV(state.fig,j,a,v[i]||0))}clampFigure();refreshAxis()}
 function save(){localStorage.setItem("poselab",serialize());toast("Pose saved locally")}
-function share(){const u=location.origin+location.pathname+"?pose="+encodeURIComponent(serialize())+"#editor";if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>toast("Pose link copied")).catch(()=>{history.replaceState(null,"",u);toast("Pose link is in the address bar")});else{history.replaceState(null,"",u);toast("Pose link is in the address bar")}}
+function share(){const u=new URL(location.href);u.searchParams.set("pose",serialize());u.hash="editor";const link=u.toString();if(navigator.clipboard)navigator.clipboard.writeText(link).then(()=>toast("Pose link copied")).catch(()=>{history.replaceState(null,"",link);toast("Pose link is in the address bar")});else{history.replaceState(null,"",link);toast("Pose link is in the address bar")}}
 function exportPng(){state.engine.renderer.render(state.engine.scene,state.engine.camera);state.engine.renderer.domElement.toBlob(b=>{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="poselab.png";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast("PNG exported")},"image/png")}
 function updateProp(){if(state.prop){state.engine.scene.remove(state.prop);state.prop.geometry.dispose();state.prop.material.dispose();state.prop=null}const t=$("#prop").value;if(t==="none")return;let g=t==="ball"?new THREE.SphereGeometry(.35,24,16):t==="target"?new THREE.CylinderGeometry(.45,.45,.12,32):new THREE.BoxGeometry(.8,.8,.8);state.prop=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:"#b9ff4d",roughness:.55}));state.prop.castShadow=true;state.engine.scene.add(state.prop);updatePropTransform()}
 function updatePropTransform(){if(!state.prop)return;state.prop.position.set(+$("#px").value,.45,+$("#pz").value);state.prop.scale.setScalar(+$("#ps").value)}
 function wire(){ $$(".tab").forEach(b=>b.onclick=()=>{$$(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");state.axis=b.dataset.axis;refreshAxis()});$("#joint").onchange=e=>{state.joint=e.target.value;refreshAxis()};$("#axis").oninput=e=>{const p=part(state.joint),[min,max]=dynamicLimit(state.joint,state.axis);setV(state.fig,state.joint,state.axis,THREE.MathUtils.clamp(+e.target.value,min,max));clampFigure();refreshAxis()};$$("[data-step]").forEach(b=>b.onclick=()=>{const [min,max]=dynamicLimit(state.joint,state.axis);setV(state.fig,state.joint,state.axis,THREE.MathUtils.clamp(+$("#axis").value + +b.dataset.step,min,max));refreshAxis()});$$("[data-model]").forEach(b=>b.onclick=()=>build(b.dataset.model));Object.keys(presets).forEach(n=>$("#presets").insertAdjacentHTML("beforeend",'<button class="card" data-preset="'+n+'" type="button">'+n+"</button>"));$$("[data-preset]").forEach(b=>b.onclick=()=>setPreset(b.dataset.preset));$("#shuffle").onclick=()=>{const a=Object.keys(presets);setPreset(a[Math.floor(Math.random()*a.length)])};$("#random").onclick=randomPose;$("#reset").onclick=()=>setPreset("Neutral");$("#save").onclick=save;$("#share").onclick=share;$("#png").onclick=exportPng;$("#cam").onclick=fitCamera;$("#color").oninput=e=>state.fig.traverse(o=>{if(o.isMesh)o.material.color.set(e.target.value)});$("#light").oninput=e=>state.engine.light.intensity=+e.target.value;$("#angle").oninput=e=>{const a=THREE.MathUtils.degToRad(+e.target.value);state.engine.light.position.set(Math.cos(a)*8,7,Math.sin(a)*8);state.engine.light.position.normalize().multiplyScalar(15)};$("#prop").onchange=updateProp;["px","pz","ps"].forEach(id=>$("#"+id).oninput=updatePropTransform)}
-const scene=new THREE.Scene();scene.background=new THREE.Color("#0a0c10");const camera=new THREE.PerspectiveCamera(30,innerWidth/innerHeight,.1,100);const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;$("#stage").appendChild(renderer.domElement);const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.enablePan=false;scene.add(new THREE.HemisphereLight("#fff","#243040",1.8));const key=new THREE.DirectionalLight("#fff",2.2);key.position.set(7,7,8);key.castShadow=true;scene.add(key);const floor=new THREE.Mesh(new THREE.CircleGeometry(7,64),new THREE.MeshStandardMaterial({color:"#12161d",roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);state.engine={scene,camera,renderer,controls,light:key};wire();Object.keys(presets).forEach(()=>{});build("basic");setPreset("Neutral");updateProp();const q=new URLSearchParams(location.search);if(q.get("pose"))applyState(JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(q.get("pose")))))));else if(localStorage.getItem("poselab"))applyState(JSON.parse(decodeURIComponent(escape(atob(localStorage.getItem("poselab"))))));addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});(function loop(){controls.update();renderer.render(scene,camera);requestAnimationFrame(loop)})();
+const scene=new THREE.Scene();scene.background=new THREE.Color("#0a0c10");const camera=new THREE.PerspectiveCamera(30,innerWidth/innerHeight,.1,100);const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;$("#stage").appendChild(renderer.domElement);const controls=new OrbitControlsLite(camera,renderer.domElement);controls.enableDamping=true;controls.enablePan=false;scene.add(new THREE.HemisphereLight("#fff","#243040",1.8));const key=new THREE.DirectionalLight("#fff",2.2);key.position.set(7,7,8);key.castShadow=true;scene.add(key);const floor=new THREE.Mesh(new THREE.CircleGeometry(7,64),new THREE.MeshStandardMaterial({color:"#12161d",roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);state.engine={scene,camera,renderer,controls,light:key};wire();build("basic");setPreset("Neutral");updateProp();const q=new URLSearchParams(location.search);try{const encoded=q.get("pose"),saved=localStorage.getItem("poselab");if(encoded)applyState(decodePose(encoded));else if(saved)applyState(decodePose(saved))}catch(err){console.error("Invalid pose state",err);toast("Invalid pose link")};addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});(function loop(){controls.update();renderer.render(scene,camera);requestAnimationFrame(loop)})();
 </script>
 </body>
 </html>
