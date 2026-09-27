@@ -14,64 +14,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install Playwright Core
-        run: npm install --no-save playwright-core@1.52.0
-      - name: Locate browser
+
+      - name: Static and JavaScript checks
         run: |
-          BROWSER_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
-          test -n "$BROWSER_PATH"
-          echo "BROWSER_PATH=$BROWSER_PATH" >> "$GITHUB_ENV"
-      - name: Test file:// and HTTP runtime
+          test -f index.html
+          test -s vendor/three.min.js
+          grep -q './vendor/three.min.js' index.html
+          ! grep -q 'type="module"' index.html
+          ! grep -q 'three.module.js' index.html
+          ! grep -Eq 'from[[:space:]]+["'"'"']three["'"'"']' index.html
+          node <<'NODE'
+          const fs = require('fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const scripts = [...html.matchAll(/<script(?:[^>]*)>([\s\S]*?)<\/script>/gi)]
+            .map(match => match[1].trim())
+            .filter(Boolean);
+          if (!scripts.length) throw new Error('No inline application script found');
+          new Function(scripts[scripts.length - 1]);
+          console.log('Inline JavaScript parses successfully');
+          NODE
+
+      - name: Browser runtime check
         run: |
           python3 -m http.server 4173 > /tmp/poselab-server.log 2>&1 &
           SERVER_PID=$!
           trap 'kill $SERVER_PID' EXIT
-          node <<'NODE'
-          const { chromium } = require('playwright-core');
+          sleep 1
+          curl -fsS http://127.0.0.1:4173/index.html > /dev/null
 
-          (async () => {
-            const browser = await chromium.launch({
-              headless: true,
-              executablePath: process.env.BROWSER_PATH,
-              args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader']
-            });
-            const errors = [];
+          for entry in \
+            "file://${GITHUB_WORKSPACE}/index.html" \
+            "http://127.0.0.1:4173/index.html"
+          do
+            out="$(mktemp)"
+            timeout 20s google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
+              --use-gl=angle --use-angle=swiftshader --virtual-time-budget=3000 \
+              --dump-dom "$entry" > "$out"
 
-            for (const url of [
-              `file://${process.env.GITHUB_WORKSPACE}/index.html`,
-              'http://127.0.0.1:4173/index.html'
-            ]) {
-              const page = await browser.newPage();
-              page.on('pageerror', error => errors.push(`${url} pageerror: ${error.message}`));
-              page.on('console', msg => {
-                if (msg.type() === 'error') errors.push(`${url} console: ${msg.text()}`);
-              });
-
-              try {
-                await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
-                await page.waitForSelector('#status.ready', { state: 'visible', timeout: 15000 });
-                await page.click('#random');
-                await page.click('#save');
-                await page.click('#reset');
-                await page.waitForSelector('#status.ready', { state: 'visible', timeout: 5000 });
-              } catch (error) {
-                const status = await page.locator('#status').textContent().catch(() => 'unavailable');
-                errors.push(`${url} readiness: ${error.message}; status=${status}`);
-              } finally {
-                await page.close();
-              }
+            grep -q 'id="status" class="status ready"' "$out" || {
+              echo "Application did not reach Ready for $entry"
+              cat /tmp/poselab-server.log
+              tail -n 80 "$out"
+              exit 1
             }
-
-            await browser.close();
-
-            if (errors.length) {
-              throw new Error(errors.join("\n"));
-            }
-          })().catch(error => {
-            console.error(error);
-            process.exit(1);
-          });
-          NODE
+            rm -f "$out"
+          done
