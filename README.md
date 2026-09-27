@@ -4,7 +4,7 @@ A single-page personal 3D pose reference editor.
 
 ## Run
 
-You can open `index.html` directly in a browser or serve the folder with `./serve.sh`. The editor loads a pinned Three.js build from jsDelivr at runtime, so internet access is required for the 3D engine.
+You can open `index.html` directly in a browser or serve the folder with `./serve.sh`. The editor bundles a local Three.js UMD build, so the page can run without an external JavaScript CDN.
 
 For a local HTTP run:
 
