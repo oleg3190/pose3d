@@ -4,7 +4,15 @@ A single-page personal 3D pose reference editor.
 
 ## Run
 
-Open `index.html` through a static web server. The page uses Three.js and OrbitControls from jsDelivr at runtime, so the editor needs internet access to load its 3D engine.
+You can open `index.html` directly in a browser or serve the folder with `./serve.sh`. The editor loads a pinned Three.js build from jsDelivr at runtime, so internet access is required for the 3D engine.
+
+For a local HTTP run:
+
+```sh
+./serve.sh
+```
+
+Then open `http://127.0.0.1:4173/`.
 
 ## Features
 
