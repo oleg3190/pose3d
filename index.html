@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PoseLab — 3D pose reference</title>
+<style>
+:root{--bg:#0a0c10;--panel:rgba(16,20,27,.88);--line:rgba(255,255,255,.1);--text:#f4f6fa;--muted:#9da6b7;--accent:#b9ff4d}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}button,select,input{font:inherit}button,select,input[type=range]{cursor:pointer}a{color:inherit;text-decoration:none}
+.top{position:fixed;z-index:20;left:18px;right:18px;top:14px;height:58px;padding:0 14px;border:1px solid var(--line);border-radius:16px;background:var(--panel);backdrop-filter:blur(16px);display:flex;align-items:center;gap:22px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800}.brand i{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--accent);color:#142000;font-style:normal;font-weight:900}.nav{display:flex;gap:18px;color:#aeb6c4;font-size:14px}.actions{margin-left:auto;display:flex;gap:8px}.btn{border:1px solid var(--line);border-radius:11px;padding:9px 13px;background:rgba(255,255,255,.05);color:inherit}.primary{background:var(--accent);color:#142000;border-color:transparent;font-weight:800}
+.editor{position:relative;height:100vh;min-height:760px;overflow:hidden}.stage{position:absolute;inset:0}.stage canvas{display:block;width:100%;height:100%}
+.intro{position:absolute;z-index:8;left:28px;top:106px;width:min(430px,calc(100vw - 56px));padding:24px;border:1px solid var(--line);border-radius:18px;background:var(--panel);backdrop-filter:blur(18px)}.eyebrow{font-size:11px;letter-spacing:.18em;color:var(--accent);font-weight:800;margin-bottom:12px}.intro h1{margin:0;font-size:clamp(42px,5vw,72px);line-height:.95;letter-spacing:-.05em}.intro h1 span{color:#c9d0dc}.intro p{color:var(--muted);line-height:1.55;font-size:14px;max-width:38ch}.row{display:flex;gap:8px;flex-wrap:wrap}
+.panel{position:absolute;z-index:10;top:98px;width:286px;padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--panel);backdrop-filter:blur(18px)}.left{left:28px;transform:translateY(300px)}.right{right:28px;max-height:calc(100vh - 116px);overflow:auto}.title{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:13px}.muted{color:var(--muted);font-size:11px}.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0}.tab{padding:8px;border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.03)}.tab.active{background:rgba(185,255,77,.12);border-color:rgba(185,255,77,.36);color:var(--accent)}
+label{display:block;color:var(--muted);font-size:11px;margin:10px 0 6px}select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#11151c;color:var(--text)}input[type=range]{width:100%;accent-color:var(--accent)}output{float:right;color:var(--accent);font-variant-numeric:tabular-nums}.limits{font-size:10px;color:#7e8796;display:flex;justify-content:space-between;margin-top:5px}.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}.chip{padding:7px 4px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.03);color:#cbd2dd;font-size:11px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:9px}.card{padding:9px;border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.03);text-align:left;color:#cbd2dd}.card.active{border-color:rgba(185,255,77,.38);background:rgba(185,255,77,.08);color:var(--accent)}
+.section{padding:12px 0;border-bottom:1px solid var(--line)}.section:last-child{border:0}.stack{display:grid;gap:8px}.range{display:flex;align-items:center;justify-content:space-between;gap:10px}.range span{font-size:11px;color:var(--muted)}.range input[type=color]{width:44px;height:28px;border:0;background:none;padding:0}.hint{position:absolute;z-index:9;bottom:22px;left:50%;transform:translateX(-50%);padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:#c8d0db;font-size:11px;white-space:nowrap}.status{font-size:10px}.ready{color:var(--accent)}.error{color:#ff7070}.toast{position:fixed;z-index:50;left:50%;bottom:28px;transform:translate(-50%,20px);opacity:0;padding:10px 14px;border-radius:11px;background:#1a202b;border:1px solid var(--line);transition:.2s}.toast.on{opacity:1;transform:translate(-50%,0)}
+@media(max-width:820px){.nav{display:none}.top{left:10px;right:10px}.editor{min-height:900px}.intro{left:12px;right:12px;top:88px;width:auto}.left{display:none}.right{left:12px;right:12px;top:auto;bottom:12px;max-height:310px;width:auto}.hint{display:none}}
+</style>
+</head>
+<body>
+<header class="top">
+<a class="brand" href="#"><i>P</i><span>PoseLab</span></a>
+<nav class="nav"><a href="#editor">Editor</a><a href="#about">Features</a></nav>
+<div class="actions"><button class="btn" id="save">Save pose</button><button class="btn primary" id="share">Share</button></div>
+</header>
+<main id="editor" class="editor">
+<div id="stage" class="stage"></div>
+<section class="intro">
+<div class="eyebrow">PRIVATE 3D REFERENCE</div>
+<h1>Build the pose.<br><span>Keep the reference.</span></h1>
+<p>A lightweight articulated human reference in the browser. Joint controls are constrained to conservative human-style ranges.</p>
+<div class="row"><button class="btn primary" id="random">Random pose</button><button class="btn" id="reset">Reset</button></div>
+</section>
+<aside class="panel left">
+<div class="title"><span>Pose tools</span><span class="muted">Z / X / Y</span></div>
+<div class="tabs"><button class="tab active" data-axis="bend">Bend</button><button class="tab" data-axis="tilt">Tilt</button><button class="tab" data-axis="turn">Rotate</button></div>
+<label>Joint<select id="joint"><option value="torso">Torso</option><option value="head">Head</option><option value="lShoulder">Left shoulder</option><option value="lElbow">Left elbow</option><option value="lWrist">Left wrist</option><option value="rShoulder">Right shoulder</option><option value="rElbow">Right elbow</option><option value="rWrist">Right wrist</option><option value="lHip">Left hip</option><option value="lKnee">Left knee</option><option value="lAnkle">Left ankle</option><option value="rHip">Right hip</option><option value="rKnee">Right knee</option><option value="rAnkle">Right ankle</option></select></label>
+<label><span id="axisLabel">Bend</span><output id="axisValue">0°</output><input id="axis" type="range" step="1" value="0"><div class="limits"><span>human limit</span><strong id="limits">−25° … 25°</strong></div></label>
+<div class="chips"><button class="chip" data-step="-15">−15°</button><button class="chip" data-step="15">+15°</button><button class="chip" data-step="-45">−45°</button><button class="chip" data-step="45">+45°</button></div>
+<p class="muted">Limits also sanitize presets, random poses and shared links.</p>
+</aside>
+<aside class="panel right">
+<div class="section"><div class="title"><span>Model</span><span id="status" class="status">Loading</span></div><div class="grid"><button class="card active" data-model="basic">Basic</button><button class="card" data-model="male">Male</button><button class="card" data-model="female">Female</button><button class="card" data-model="child">Child</button></div></div>
+<div class="section"><div class="title"><span>Presets</span><button class="btn" id="shuffle">↻</button></div><div class="grid" id="presets"></div></div>
+<div class="section"><div class="title"><span>Appearance</span></div><label class="range"><span>Figure color</span><input id="color" type="color" value="#d8dce5"></label><label>Key light<input id="light" type="range" min=".5" max="5" step=".1" value="2.2"></label><label>Light angle<input id="angle" type="range" min="0" max="360" step="1" value="35"></label></div>
+<div class="section"><div class="title"><span>Prop</span></div><select id="prop"><option value="none">None</option><option value="cube">Block</option><option value="ball">Ball</option><option value="target">Target</option></select><label>X<input id="px" type="range" min="-2" max="2" step=".1" value="0"></label><label>Z<input id="pz" type="range" min="-2" max="2" step=".1" value="0"></label><label>Scale<input id="ps" type="range" min=".25" max="2.5" step=".05" value="1"></label></div>
+<div class="section stack"><button class="btn" id="cam">Reset camera</button><button class="btn primary" id="png">Export PNG</button></div>
+</aside>
+<div class="hint">Drag to orbit · Wheel to zoom · Use the panels to pose</div>
+</main>
+<div id="toast" class="toast"></div>
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
+import {OrbitControls} from "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js";
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const scene=new THREE.Scene(); scene.background=new THREE.Color("#0a0c10");
+const camera=new THREE.PerspectiveCamera(30,innerWidth/innerHeight,.1,100); camera.position.set(0,2.2,6.2);
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight); $("#stage").appendChild(renderer.domElement);
+renderer.shadowMap.enabled=true;
+const controls=new OrbitControls(camera,renderer.domElement); controls.enableDamping=true; controls.enablePan=false; controls.target.set(0,2.5,0);
+scene.add(new THREE.HemisphereLight("#ffffff","#243040",1.8));
+const light=new THREE.DirectionalLight("#ffffff",2.2); light.position.set(7,7,8); light.castShadow=true; scene.add(light);
+const floor=new THREE.Mesh(new THREE.CircleGeometry(7,64),new THREE.MeshStandardMaterial({color:"#12161d",roughness:1})); floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; scene.add(floor);
+
+const LIMITS={
+torso:{bend:[-25,25],tilt:[-20,20],turn:[-40,40]},head:{bend:[-30,40],tilt:[-25,25],turn:[-70,70]},
+lShoulder:{bend:[-50,140],tilt:[-35,95],turn:[-80,80]},rShoulder:{bend:[-50,140],tilt:[-35,95],turn:[-80,80]},
+lElbow:{bend:[0,145],tilt:[0,0],turn:[0,0]},rElbow:{bend:[0,145],tilt:[0,0],turn:[0,0]},
+lWrist:{bend:[-70,70],tilt:[-30,30],turn:[-45,45]},rWrist:{bend:[-70,70],tilt:[-30,30],turn:[-45,45]},
+lHip:{bend:[-30,115],tilt:[-35,35],turn:[-35,35]},rHip:{bend:[-30,115],tilt:[-35,35],turn:[-35,35]},
+lKnee:{bend:[0,145],tilt:[0,0],turn:[0,0]},rKnee:{bend:[0,145],tilt:[0,0],turn:[0,0]},
+lAnkle:{bend:[-20,35],tilt:[-15,15],turn:[-10,10]},rAnkle:{bend:[-20,35],tilt:[-15,15],turn:[-10,10]}
+};
+const MODEL={basic:{head:1,neck:.35,torso:1.55,pelvis:.45,upperArm:.95,foreArm:.9,thigh:1.05,shin:1.0},male:{head:1.02,neck:.38,torso:1.7,pelvis:.48,upperArm:1.05,foreArm:1,thigh:1.12,shin:1.05},female:{head:.98,neck:.34,torso:1.52,pelvis:.52,upperArm:.9,foreArm:.86,thigh:1.02,shin:.98},child:{head:1.15,neck:.25,torso:1.0,pelvis:.32,upperArm:.68,foreArm:.62,thigh:.72,shin:.68}};
+let fig=new THREE.Group(), prop=null, modelType="basic", axisName="bend", jointName="torso";
+scene.add(fig);
+
+function mat(){return new THREE.MeshStandardMaterial({color:$("#color").value,roughness:.75,metalness:.02})}
+function seg(len,r){const g=new THREE.Group(); const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r*.9,len,18),mat()); m.geometry.translate(0,len/2,0);m.castShadow=true;m.receiveShadow=true;g.add(m);return g}
+function joint(){const m=new THREE.Mesh(new THREE.SphereGeometry(.12,16,12),mat());m.castShadow=true;return m}
+function limb(parent,name,len,r){const g=seg(len,r);g.name=name;parent.add(g);g.add(joint());return g}
+function clear(g){while(g.children.length){const c=g.children.pop();c.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose()})}}
+function build(type){
+  clear(fig); modelType=type; fig=new THREE.Group(); scene.add(fig);
+  const m=MODEL[type], scale=type==="child"?.78:1;
+  fig.scale.setScalar(scale);
+  const pelvis=new THREE.Group(); pelvis.name="pelvis"; pelvis.position.y=m.pelvis; fig.add(pelvis);
+  const torso=seg(m.torso,.34); torso.name="torso"; pelvis.add(torso);
+  const neck=new THREE.Group(); neck.name="neck"; neck.position.y=m.torso; torso.add(neck);
+  const neckSeg=seg(m.neck,.14); neck.add(neckSeg);
+  const head=seg(m.head*.55,.27); head.name="head"; head.position.y=m.neck; neck.add(head);
+  const shoulders=new THREE.Group(); shoulders.position.y=m.torso*.75; torso.add(shoulders);
+  for(const side of [-1,1]){
+    const s=side<0?"l":"r", sh=limb(shoulders,s+"Shoulder",m.upperArm,.11); sh.position.x=side*.46;
+    const el=limb(sh,s+"Elbow",m.foreArm,.095); el.position.y=m.upperArm;
+    const wr=limb(el,s+"Wrist",.22,.07); wr.position.y=m.foreArm;
+    const hand=seg(.28,.09); hand.position.y=.22; wr.add(hand);
+    const hip=limb(pelvis,s+"Hip",m.thigh,.15); hip.position.x=side*.19;
+    const kn=limb(hip,s+"Knee",m.shin,.13); kn.position.y=m.thigh;
+    const an=limb(kn,s+"Ankle",.22,.08); an.position.y=m.shin;
+    const foot=seg(.38,.09); foot.position.y=.18; foot.rotation.z=Math.PI/2; an.add(foot);
+  }
+  fig.userData.parts={torso,head,lShoulder:shoulders.children[0],lElbow:shoulders.children[0].children[1],lWrist:shoulders.children[0].children[1].children[1],
+    rShoulder:shoulders.children[1],rElbow:shoulders.children[1].children[1],rWrist:shoulders.children[1].children[1].children[1],
+    lHip:pelvis.children.find(x=>x.name==="lHip"),rHip:pelvis.children.find(x=>x.name==="rHip")};
+  fig.userData.parts.lKnee=fig.userData.parts.lHip.children[1]; fig.userData.parts.rKnee=fig.userData.parts.rHip.children[1];
+  fig.userData.parts.lAnkle=fig.userData.parts.lKnee.children[1]; fig.userData.parts.rAnkle=fig.userData.parts.rKnee.children[1];
+  fig.position.y=.02; fitCamera();
+  selectModelButtons();
+}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function dynamicLimit(j,a){
+  let L=(LIMITS[j]||{bend:[-180,180],tilt:[-180,180],turn:[-180,180]})[a]||[-180,180];
+  const p=fig.userData.parts[j];
+  if((j==="lShoulder"||j==="rShoulder")&&a==="turn"&&p){const elev=Math.abs(THREE.MathUtils.radToDeg(p.rotation.z));const ab=Math.abs(THREE.MathUtils.radToDeg(p.rotation.x));const reduce=Math.max(0,elev-90)*.55+Math.max(0,ab-60)*.35;L=[Math.max(L[0],-80+reduce),Math.min(L[1],80-reduce)]}
+  return L;
+}
+function getVal(part,a){
+  if(!part)return 0;
+  if(a==="bend") return THREE.MathUtils.radToDeg(part.rotation.z);
+  if(a==="tilt") return THREE.MathUtils.radToDeg(part.rotation.x);
+  return THREE.MathUtils.radToDeg(part.rotation.y);
+}
+function setVal(part,a,v){if(a==="bend")part.rotation.z=THREE.MathUtils.degToRad(v);else if(a==="tilt")part.rotation.x=THREE.MathUtils.degToRad(v);else part.rotation.y=THREE.MathUtils.degToRad(v)}
+function refresh(){
+  const p=fig.userData.parts[jointName], L=dynamicLimit(jointName,axisName), v=clamp(getVal(p,axisName),L[0],L[1]);setVal(p,axisName,v);
+  $("#axis").min=L[0];$("#axis").max=L[1];$("#axis").value=v;$("#axisValue").textContent=Math.round(v)+"°";$("#limits").textContent=L[0]+"° … "+L[1]+"°";$("#axisLabel").textContent=axisName==="bend"?"Bend":axisName==="tilt"?"Tilt":"Rotate";
+}
+const presets={
+Neutral:f=>{},A-Pose:f=>{["lShoulder","rShoulder"].forEach(j=>setVal(f.userData.parts[j],"tilt",42))},
+T-Pose:f=>{["lShoulder","rShoulder"].forEach(j=>setVal(f.userData.parts[j],"tilt",88))},
+Runner:f=>{setVal(f.userData.parts.lShoulder,"bend",30);setVal(f.userData.parts.rShoulder,"bend",-25);setVal(f.userData.parts.lElbow,"bend",100);setVal(f.userData.parts.rElbow,"bend",110);setVal(f.userData.parts.lKnee,"bend",35);setVal(f.userData.parts.rKnee,"bend",88);setVal(f.userData.parts.lHip,"bend",-15);setVal(f.userData.parts.rHip,"bend",35)},
+Crouch:f=>{setVal(f.userData.parts.lKnee,"bend",95);setVal(f.userData.parts.rKnee,"bend",95);setVal(f.userData.parts.lHip,"bend",28);setVal(f.userData.parts.rHip,"bend",28);setVal(f.userData.parts.lAnkle,"bend",25);setVal(f.userData.parts.rAnkle,"bend",25)}
+};
+function sanitize(){for(const j of Object.keys(LIMITS)){const p=fig.userData.parts[j];if(!p)continue;for(const a of ["bend","tilt","turn"]){const L=dynamicLimit(j,a);setVal(p,a,clamp(getVal(p,a),L[0],L[1]))}}}
+function applyPreset(n){Object.values(fig.userData.parts).forEach(p=>p.rotation.set(0,0,0));(presets[n]||presets.Neutral)(fig);sanitize();refresh();toast(n)}
+function randomPose(){Object.keys(LIMITS).forEach(j=>{["bend","tilt","turn"].forEach(a=>{const p=fig.userData.parts[j],L=dynamicLimit(j,a);setVal(p,a,THREE.MathUtils.lerp(L[0],L[1],Math.random()))})});sanitize();refresh();toast("Random pose")}
+function serialize(){const out={model:modelType,j:{}};for(const j of Object.keys(LIMITS)){const p=fig.userData.parts[j];if(p)out.j[j]=["bend","tilt","turn"].map(a=>getVal(p,a))}return btoa(unescape(encodeURIComponent(JSON.stringify(out))))}
+function deserialize(s){try{return JSON.parse(decodeURIComponent(escape(atob(s))))}catch{return null}}
+function applyState(s){if(!s)return;build(s.model||"basic");for(const [j,v] of Object.entries(s.j||{})){const p=fig.userData.parts[j];if(!p)continue;["bend","tilt","turn"].forEach((a,i)=>setVal(p,a,v[i]||0))}sanitize();refresh()}
+function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),1800)}
+function save(){localStorage.setItem("poselab",serialize());toast("Pose saved locally")}
+function share(){const u=location.origin+location.pathname+"?pose="+serialize()+"#editor";navigator.clipboard?.writeText(u).then(()=>toast("Pose link copied")).catch(()=>{history.replaceState(null,"",u);toast("Pose link is in the address bar")})}
+function exportPng(){renderer.render(scene,camera);renderer.domElement.toBlob(b=>{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="poselab.png";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast("PNG exported")},"image/png")}
+function fitCamera(){const b=new THREE.Box3().setFromObject(fig),s=b.getSize(new THREE.Vector3()),c=b.getCenter(new THREE.Vector3());controls.target.copy(c);const d=Math.max(s.y/2/Math.tan(THREE.MathUtils.degToRad(camera.fov/2)),s.x*1.4);camera.position.set(c.x,c.y,c.z+d*1.35);camera.near=.1;camera.far=100;camera.updateProjectionMatrix();controls.update()}
+function updateProp(){if(prop){scene.remove(prop);prop.geometry?.dispose();prop.material?.dispose();prop=null}const t=$("#prop").value;if(t==="none")return;let g=t==="ball"?new THREE.SphereGeometry(.35,24,16):t==="target"?new THREE.CylinderGeometry(.45,.45,.12,32):new THREE.BoxGeometry(.8,.8,.8);prop=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:"#b9ff4d",roughness:.55}));prop.castShadow=true;scene.add(prop);prop.position.set(+$("#px").value,.45,+$("#pz").value);prop.scale.setScalar(+$("#ps").value)}
+function selectModelButtons(){$$("[data-model]").forEach(b=>b.classList.toggle("active",b.dataset.model===modelType));$("#status").textContent="Ready";$("#status").className="status ready"}
+function wire(){
+  $$(".tab").forEach(b=>b.onclick=()=>{$$(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");axisName=b.dataset.axis;refresh()});
+  $("#joint").onchange=e=>{jointName=e.target.value;refresh()};$("#axis").oninput=e=>{setVal(fig.userData.parts[jointName],axisName,+e.target.value);sanitize();refresh()};
+  $$("[data-step]").forEach(b=>b.onclick=()=>{const L=dynamicLimit(jointName,axisName),n=clamp(+$("#axis").value + +b.dataset.step,L[0],L[1]);setVal(fig.userData.parts[jointName],axisName,n);refresh()});
+  $$("[data-model]").forEach(b=>b.onclick=()=>build(b.dataset.model));
+  Object.keys(presets).forEach(n=>$("#presets").insertAdjacentHTML("beforeend",'<button class="card" data-preset="'+n+'">'+n+"</button>"));$$("[data-preset]").forEach(b=>b.onclick=()=>applyPreset(b.dataset.preset));
+  $("#shuffle").onclick=()=>{const a=Object.keys(presets);applyPreset(a[Math.floor(Math.random()*a.length)])};
+  $("#random").onclick=randomPose;$("#reset").onclick=()=>applyPreset("Neutral");$("#save").onclick=save;$("#share").onclick=share;$("#png").onclick=exportPng;$("#cam").onclick=fitCamera;
+  $("#color").oninput=e=>fig.traverse(o=>{if(o.isMesh)o.material.color.set(e.target.value)});$("#light").oninput=e=>light.intensity=+e.target.value;
+  $("#angle").oninput=e=>{const a=THREE.MathUtils.degToRad(+e.target.value);light.position.set(Math.cos(a)*8,7,Math.sin(a)*8)};["prop","px","pz","ps"].forEach(id=>$("#"+id).addEventListener(id==="prop"?"change":"input",updateProp));
+}
+addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+const names=Object.keys(presets);names.forEach(()=>{});
+wire();build("basic");applyPreset("Neutral");updateProp();
+const q=new URLSearchParams(location.search);if(q.get("pose"))applyState(deserialize(q.get("pose")));else{const s=localStorage.getItem("poselab");if(s)applyState(deserialize(s))}
+function loop(){controls.update();renderer.render(scene,camera);requestAnimationFrame(loop)}loop();
+</script>
+</body>
+</html>
