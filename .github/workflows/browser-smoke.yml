@@ -5,6 +5,10 @@ on:
     branches: ["main"]
   pull_request:
 
+concurrency:
+  group: browser-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   browser-smoke:
     runs-on: ubuntu-latest
@@ -13,20 +17,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install Playwright
-        run: npm install --no-save playwright@1.52.0
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright Core
+        run: npm install --no-save playwright-core@1.52.0
+      - name: Locate browser
+        run: |
+          BROWSER_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$BROWSER_PATH"
+          echo "BROWSER_PATH=$BROWSER_PATH" >> "$GITHUB_ENV"
       - name: Test file:// and HTTP runtime
         run: |
           python3 -m http.server 4173 > /tmp/poselab-server.log 2>&1 &
           SERVER_PID=$!
           trap 'kill $SERVER_PID' EXIT
           node <<'NODE'
-          const { chromium } = require('playwright');
+          const { chromium } = require('playwright-core');
 
           (async () => {
-            const browser = await chromium.launch({ headless: true });
+            const browser = await chromium.launch({ headless: true, executablePath: process.env.BROWSER_PATH, args: ['--no-sandbox'] });
             const errors = [];
 
             for (const url of [
