@@ -9,7 +9,7 @@ You can open `index.html` directly in a browser or serve the folder with `./serv
 For a local HTTP run:
 
 ```sh
-./serve.sh
+sh ./serve.sh
 ```
 
 Then open `http://127.0.0.1:4173/`.
