@@ -1,0 +1,60 @@
+name: browser-smoke
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: npm install --no-save playwright@1.52.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test file:// and HTTP runtime
+        run: |
+          python3 -m http.server 4173 > /tmp/poselab-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+          node <<'NODE'
+          const { chromium } = require('playwright');
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const errors = [];
+
+            for (const url of [
+              `file://${process.env.GITHUB_WORKSPACE}/index.html`,
+              'http://127.0.0.1:4173/index.html'
+            ]) {
+              const page = await browser.newPage();
+              page.on('pageerror', error => errors.push(`${url} pageerror: ${error.message}`));
+              page.on('console', msg => {
+                if (msg.type() === 'error') errors.push(`${url} console: ${msg.text()}`);
+              });
+
+              await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+              await page.waitForSelector('#status.ready', { state: 'visible', timeout: 15000 });
+              await page.click('#random');
+              await page.click('#save');
+              await page.click('#reset');
+              await page.waitForSelector('#status.ready', { state: 'visible', timeout: 5000 });
+              await page.close();
+            }
+
+            await browser.close();
+
+            if (errors.length) {
+              throw new Error(errors.join("\n"));
+            }
+          })().catch(error => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
