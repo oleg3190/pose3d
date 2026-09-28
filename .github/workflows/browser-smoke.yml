@@ -39,6 +39,17 @@ jobs:
           console.log('Application JavaScript parses successfully');
           NODE
 
+      - name: Verify local server script
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/occupied-port.log 2>&1 &
+          OCCUPIED_PID=$!
+          trap 'kill $OCCUPIED_PID 2>/dev/null || true' EXIT
+          sleep 1
+          test -x ./serve.sh
+          output="$(timeout 3s ./serve.sh)"
+          printf '%s\n' "$output"
+          echo "$output" | grep -q 'http://127.0.0.1:4174/'
+
       - name: Browser runtime check
         run: |
           python3 -m http.server 4173 > /tmp/poselab-server.log 2>&1 &
