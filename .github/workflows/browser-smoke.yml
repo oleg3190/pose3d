@@ -27,6 +27,9 @@ jobs:
           grep -q './vendor/three.module.js' index.html
           grep -q './vendor/OrbitControls.js' index.html
           ! grep -Eq "from[[:space:]]+['\"]three['\"]" index.html
+          grep -q 'getContext("webgl2"' index.html
+          ! grep -q 'getContext("webgl",' index.html
+          grep -q "WebGL2 unavailable" index.html
           node <<'NODE'
           const fs = require('fs');
           const html = fs.readFileSync('index.html', 'utf8');
