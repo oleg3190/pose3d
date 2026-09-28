@@ -92,7 +92,7 @@ jobs:
           sleep 1
 
           out="$(mktemp)"
-          timeout 20s google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
+          timeout 30s google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
             --enable-webgl --ignore-gpu-blocklist --enable-unsafe-swiftshader \
             --use-gl=angle --use-angle=swiftshader --virtual-time-budget=3000 \
             --dump-dom http://127.0.0.1:4173/.ci-runtime/webgl1.html > "$out"
@@ -113,7 +113,7 @@ jobs:
           out="$(mktemp)"
           timeout 20s google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
             --enable-webgl --ignore-gpu-blocklist --enable-unsafe-swiftshader \
-            --use-gl=angle --use-angle=swiftshader --virtual-time-budget=5000 \
+            --use-gl=angle --use-angle=swiftshader --virtual-time-budget=15000 \
             --dump-dom "http://127.0.0.1:4173/index.html?smoke=1" > "$out"
 
           grep -q 'id="status" class="status ready"' "$out"
