@@ -116,7 +116,8 @@ jobs:
             --use-gl=angle --use-angle=swiftshader --virtual-time-budget=15000 \
             --dump-dom "http://127.0.0.1:4173/index.html?smoke=1" > "$out"
 
-          grep -q 'id="status" class="status ready"' "$out"
+          grep -o 'id="status"[^>]*>[^<]*' "$out" || true
           ! grep -q 'Runtime error:' "$out"
+          grep -q 'id="status" class="status ready"' "$out"
           echo "All mannequin models, joints, presets, random pose and state restore passed."
           rm -f "$out"
