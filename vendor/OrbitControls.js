@@ -1,4 +1,5 @@
-const {Controls,MOUSE,Quaternion,Spherical,TOUCH,Vector2,Vector3,Plane,Ray,MathUtils}=globalThis.THREE;
+const {EventDispatcher,MOUSE,Quaternion,Spherical,TOUCH,Vector2,Vector3,Plane,Ray,MathUtils}=globalThis.THREE;
+class LegacyControls extends EventDispatcher { constructor(object,domElement=null){ super(); this.object=object; this.domElement=domElement; } }
 // OrbitControls performs orbiting, dollying (zooming), and panning.
 // Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
 //
@@ -28,7 +29,7 @@ const _STATE = {
 };
 const _EPS = 0.000001;
 
-class OrbitControls extends Controls {
+class OrbitControls extends LegacyControls {
 
 	constructor( object, domElement = null ) {
 
