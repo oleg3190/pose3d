@@ -228,7 +228,7 @@ function buildMakeHumanFigure(type){
 function build(type){
   if(state.fig)state.engine.scene.remove(state.fig);
   const f=buildMakeHumanFigure(type);
-  state.fig=f;state.model=type;f.position.y=.02;state.engine.scene.add(f);
+  state.fig=f;state.model=type;f.position.y=MH_FLOOR_OFFSET;state.engine.scene.add(f);
   $("#status").textContent="Ready";$("#status").className="status ready";
   qsa("[data-model]").forEach(b=>b.classList.toggle("active",b.dataset.model===type));
   fitCamera();refreshAxis();
