@@ -1509,4 +1509,4 @@ function interceptControlUp( event ) {
 
 }
 
-export { OrbitControls };
+globalThis.OrbitControls=OrbitControls;
