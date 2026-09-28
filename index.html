@@ -188,22 +188,22 @@ function build(type){
   fitCamera();refreshAxis();
 }
 function addJointMarkers(f){
-  const markerGroup=new THREE.Group();markerGroup.name="JointMarkers";
+  const markers=[];
   const colors={head:0x8bd3ff,torso:0xb9ff4d,lShoulder:0xff8a65,rShoulder:0xff8a65,lElbow:0xffc107,rElbow:0xffc107,lWrist:0xffe082,rWrist:0xffe082,lHip:0x64b5f6,rHip:0x64b5f6,lKnee:0x90caf9,rKnee:0x90caf9,lAnkle:0x81d4fa,rAnkle:0x81d4fa};
   const joints=Object.keys(f.userData.parts);
   for(const joint of joints){
     const bone=f.userData.parts[joint],mat=new THREE.MeshBasicMaterial({color:colors[joint]||0xffffff,depthTest:false,transparent:true,opacity:.96});
     const marker=new THREE.Mesh(new THREE.SphereGeometry(.085,16,12),mat);
     marker.name="JointPoint_"+joint;marker.userData.joint=joint;marker.renderOrder=20;
-    bone.add(marker);markerGroup.add(marker);
+    bone.add(marker);markers.push(marker);
   }
-  f.userData.jointMarkers=markerGroup;
-  return markerGroup
+  f.userData.jointMarkers=markers;
+  return markers
 }
 function selectJoint(joint){
   if(!state.fig?.userData?.parts?.[joint])return;
   state.joint=joint;$("#joint").value=joint;refreshAxis();
-  for(const m of state.fig.userData.jointMarkers?.children||[])m.scale.setScalar(m.userData.joint===joint?1.65:1);
+  for(const m of state.fig.userData.jointMarkers||[])m.scale.setScalar(m.userData.joint===joint?1.65:1);
   toast("Joint: "+joint)
 }\nfunction applyLimbSkinning(){const mh=state.fig?.userData?.makeHuman;if(!mh)return;state.fig.updateMatrixWorld(true);mh.skeleton.update()}
 function setPreset(name){Object.values(state.fig.userData.parts).filter(Boolean).forEach(p=>p.rotation.set(0,0,0));presets[name](state.fig);clampFigure();fitCamera();refreshAxis();toast(name)}
@@ -221,7 +221,7 @@ function runRegressionChecks(){
   const required=["torso","head","lShoulder","lElbow","lWrist","rShoulder","rElbow","rWrist","lHip","lKnee","lAnkle","rHip","rKnee","rAnkle"];
   for(const model of Object.keys(MODEL)){
     build(model);
-    for(const key of required) if(!part(key)) throw new Error("Missing mannequin part: "+model+"/"+key);if(!state.fig.userData.makeHuman.mesh.isSkinnedMesh||!state.fig.userData.makeHuman.mesh.geometry.getAttribute("skinIndex")||!state.fig.userData.makeHuman.mesh.geometry.getAttribute("skinWeight"))throw new Error("SkinnedMesh regression failed: "+model);if(!state.fig.userData.jointMarkers||state.fig.userData.jointMarkers.children.length!==required.length)throw new Error("Joint marker regression failed: "+model);
+    for(const key of required) if(!part(key)) throw new Error("Missing mannequin part: "+model+"/"+key);if(!state.fig.userData.makeHuman.mesh.isSkinnedMesh||!state.fig.userData.makeHuman.mesh.geometry.getAttribute("skinIndex")||!state.fig.userData.makeHuman.mesh.geometry.getAttribute("skinWeight"))throw new Error("SkinnedMesh regression failed: "+model);if(!state.fig.userData.jointMarkers||state.fig.userData.jointMarkers.length!==required.length)throw new Error("Joint marker regression failed: "+model);
     for(const preset of Object.keys(presets)) setPreset(preset);
     randomPose();
     clampFigure();
@@ -239,7 +239,7 @@ function pickJoint(event){
   pointer.x=((event.clientX-rect.left)/rect.width)*2-1;
   pointer.y=-((event.clientY-rect.top)/rect.height)*2+1;
   raycaster.setFromCamera(pointer,state.engine.camera);
-  const hits=raycaster.intersectObjects(state.fig.userData.jointMarkers.children,false);
+  const hits=raycaster.intersectObjects(state.fig.userData.jointMarkers,false);
   if(hits.length)selectJoint(hits[0].object.userData.joint);
 }\nfunction wire(){ qsa(".tab").forEach(b=>b.onclick=()=>{qsa(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");state.axis=b.dataset.axis;refreshAxis()});$("#joint").onchange=e=>{state.joint=e.target.value;refreshAxis()};$("#axis").oninput=e=>{const p=part(state.joint),[min,max]=dynamicLimit(state.joint,state.axis);setV(state.fig,state.joint,state.axis,THREE.MathUtils.clamp(+e.target.value,min,max));clampFigure();refreshAxis()};qsa("[data-step]").forEach(b=>b.onclick=()=>{const [min,max]=dynamicLimit(state.joint,state.axis);setV(state.fig,state.joint,state.axis,THREE.MathUtils.clamp(+$("#axis").value + +b.dataset.step,min,max));refreshAxis()});qsa("[data-model]").forEach(b=>b.onclick=()=>build(b.dataset.model));Object.keys(presets).forEach(n=>$("#presets").insertAdjacentHTML("beforeend",'<button class="card" data-preset="'+n+'" type="button">'+n+"</button>"));qsa("[data-preset]").forEach(b=>b.onclick=()=>setPreset(b.dataset.preset));$("#shuffle").onclick=()=>{const a=Object.keys(presets);setPreset(a[Math.floor(Math.random()*a.length)])};$("#random").onclick=randomPose;$("#reset").onclick=()=>setPreset("Neutral");$("#save").onclick=save;$("#share").onclick=share;$("#png").onclick=exportPng;$("#cam").onclick=fitCamera;$("#color").oninput=e=>state.fig.traverse(o=>{if(o.isMesh)o.material.color.set(e.target.value)});$("#light").oninput=e=>state.engine.light.intensity=+e.target.value;$("#angle").oninput=e=>{const a=THREE.MathUtils.degToRad(+e.target.value);state.engine.light.position.set(Math.cos(a)*8,7,Math.sin(a)*8);state.engine.light.position.normalize().multiplyScalar(15)};$("#prop").onchange=updateProp;["px","pz","ps"].forEach(id=>$("#"+id).oninput=updatePropTransform)}
 const scene=new THREE.Scene();scene.background=new THREE.Color("#0a0c10");const camera=new THREE.PerspectiveCamera(30,innerWidth/innerHeight,.1,100);
