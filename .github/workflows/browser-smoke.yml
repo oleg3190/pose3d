@@ -33,6 +33,8 @@ jobs:
           grep -q 'webgl1' index.html
           ! grep -q 'WebGL2 requires' index.html
           ! grep -q 'WebGL 1 support was deprecated' vendor/three-legacy.min.js
+          ! grep -q 'children\[2\]' index.html
+          grep -q 'runRegressionChecks' index.html
           node <<'NODE'
           const fs = require('fs');
           const html = fs.readFileSync('index.html', 'utf8');
@@ -100,4 +102,23 @@ jobs:
           grep -q 'id="status" class="ready"' "$out"
           grep -q 'Ready' "$out"
           echo "Three.js WebGL1 renderer smoke test passed."
+          rm -f "$out"
+
+
+      - name: Browser mannequin regression test
+        run: |
+          python3 -m http.server 4173 > /tmp/poselab-regression-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+          sleep 1
+
+          out="$(mktemp)"
+          timeout 20s google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
+            --enable-webgl --ignore-gpu-blocklist --enable-unsafe-swiftshader \
+            --use-gl=angle --use-angle=swiftshader --virtual-time-budget=5000 \
+            --dump-dom "http://127.0.0.1:4173/index.html?smoke=1" > "$out"
+
+          grep -q 'id="status" class="status ready"' "$out"
+          ! grep -q 'Runtime error:' "$out"
+          echo "All mannequin models, joints, presets, random pose and state restore passed."
           rm -f "$out"
