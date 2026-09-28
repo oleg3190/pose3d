@@ -26,7 +26,7 @@ jobs:
           ! test -e vendor/three.module.js
           grep -q './vendor/three-legacy.min.js' index.html
           grep -q './vendor/OrbitControls.js' index.html
-          grep -q 'globalThis.OrbitControls=OrbitControls' vendor/OrbitControls.js
+          grep -Eq 'globalThis\.OrbitControls[[:space:]]*=[[:space:]]*OrbitControls' vendor/OrbitControls.js
           ! grep -Eq "from[[:space:]]+['\"]three['\"]" index.html
           grep -q 'getContext("webgl2"' index.html
           grep -q 'getContext("webgl",' index.html
