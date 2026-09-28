@@ -87,12 +87,17 @@ jobs:
                 await page.selectOption('#prop', 'none');
                 await page.click('#share').catch(() => {});
               } catch (error) {
-                const snapshot = await page.evaluate(() => ({
-                  status: document.querySelector('#status')?.textContent || 'missing',
-                  statusClass: document.querySelector('#status')?.className || 'missing',
-                  bodyText: document.body.innerText.slice(0, 500),
-                  canvasCount: document.querySelectorAll('canvas').length
-                }).catch(() => ({ status: 'evaluate failed' }));
+                let snapshot;
+                try {
+                  snapshot = await page.evaluate(() => ({
+                    status: document.querySelector('#status')?.textContent || 'missing',
+                    statusClass: document.querySelector('#status')?.className || 'missing',
+                    bodyText: document.body.innerText.slice(0, 500),
+                    canvasCount: document.querySelectorAll('canvas').length
+                  }));
+                } catch {
+                  snapshot = { status: 'evaluate failed' };
+                }
                 errors.push(`${url} readiness: ${error.message}; ${JSON.stringify(snapshot)}`);
               } finally {
                 await page.close();
