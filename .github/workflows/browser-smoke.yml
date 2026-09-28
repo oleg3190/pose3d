@@ -46,7 +46,11 @@ jobs:
           trap 'kill $OCCUPIED_PID 2>/dev/null || true' EXIT
           sleep 1
           test -x ./serve.sh
+          set +e
           output="$(timeout 3s ./serve.sh)"
+          exit_code=$?
+          set -e
+          test "$exit_code" -eq 124
           printf '%s\n' "$output"
           echo "$output" | grep -q 'http://127.0.0.1:4174/'
 
