@@ -90,10 +90,75 @@ function getV(p,a){if(!p)return 0;if(a==="bend")return THREE.MathUtils.radToDeg(
 function setV(f,j,a,v){const p=f.userData.parts[j];if(!p)return;if(a==="bend")p.rotation.z=THREE.MathUtils.degToRad(v);else if(a==="tilt")p.rotation.x=THREE.MathUtils.degToRad(v);else p.rotation.y=THREE.MathUtils.degToRad(v)}
 function clampFigure(){for(const j of Object.keys(LIMITS)){const p=part(j);if(!p)continue;for(const a of ["bend","tilt","turn"]){const [min,max]=dynamicLimit(j,a);setV(state.fig,j,a,THREE.MathUtils.clamp(getV(p,a),min,max))}}}
 function refreshAxis(){const p=part(state.joint),[min,max]=dynamicLimit(state.joint,state.axis),v=THREE.MathUtils.clamp(getV(p,state.axis),min,max);$("#axis").min=min;$("#axis").max=max;$("#axis").value=v;$("#axisValue").textContent=Math.round(v)+"°";$("#limits").textContent=min+"° … "+max+"°";$("#axisLabel").textContent=state.axis==="bend"?"Bend":state.axis==="tilt"?"Tilt":"Rotate"}
-function createLimb(parent,name,len,r){const g=new THREE.Group();g.name=name;const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r*.9,len,18),new THREE.MeshStandardMaterial({color:$("#color").value,roughness:.78}));m.position.y=len/2;m.castShadow=true;m.receiveShadow=true;g.add(m);parent.add(g);return g}
-function build(type){if(state.fig)state.engine.scene.remove(state.fig);const m=MODEL[type],f=new THREE.Group(),pelvis=new THREE.Group(),torso=createLimb(pelvis,"torso",m.torso,.34),neck=createLimb(torso,"neck",m.neck,.13),head=createLimb(neck,"head",m.head*.55,.27),shoulders=new THREE.Group();pelvis.name="pelvis";pelvis.position.y=m.pelvis;torso.position.y=0;neck.position.y=m.torso;head.position.y=m.neck;shoulders.position.y=m.torso*.76;torso.add(neck);neck.add(head);torso.add(shoulders);f.add(pelvis);
-for(const side of [-1,1]){const s=side<0?"l":"r";const sh=createLimb(shoulders,s+"Shoulder",m.upperArm,.11);sh.position.x=side*.46;const el=createLimb(sh,s+"Elbow",m.foreArm,.095);el.position.y=m.upperArm;const wr=createLimb(el,s+"Wrist",.22,.07);wr.position.y=m.foreArm;const hand=createLimb(wr,s+"Hand",.28,.09);hand.position.y=.22;const hip=createLimb(pelvis,s+"Hip",m.thigh,.15);hip.position.x=side*.19;const kn=createLimb(hip,s+"Knee",m.shin,.13);kn.position.y=m.thigh;const an=createLimb(kn,s+"Ankle",.22,.08);an.position.y=m.shin;const foot=createLimb(an,s+"Foot",.38,.09);foot.position.y=.18;foot.rotation.z=Math.PI/2}
-const parts={torso,head,lShoulder:shoulders.children[0],lElbow:shoulders.children[0].children[0],lWrist:shoulders.children[0].children[0].children[0],rShoulder:shoulders.children[1],rElbow:shoulders.children[1].children[0],rWrist:shoulders.children[1].children[0].children[0],lHip:pelvis.children.find(x=>x.name==="lHip"),rHip:pelvis.children.find(x=>x.name==="rHip")};parts.lKnee=parts.lHip?.children[0];parts.rKnee=parts.rHip?.children[0];parts.lAnkle=parts.lKnee?.children[0];parts.rAnkle=parts.rKnee?.children[0];f.userData.parts=parts;state.fig=f;state.model=type;f.position.y=.02;state.engine.scene.add(f);$("#status").textContent="Ready";$("#status").className="status ready";qsa("[data-model]").forEach(b=>b.classList.toggle("active",b.dataset.model===type));fitCamera();refreshAxis()}
+function makeMat(){return new THREE.MeshStandardMaterial({color:$("#color").value,roughness:.7,metalness:.02})}
+function createCapsule(parent,name,len,r,sx=1,sz=1){const g=new THREE.Group();g.name=name;const h=Math.max(.05,len-r*2);const mesh=new THREE.Mesh(new THREE.CapsuleGeometry(r,h,8,16),makeMat());mesh.scale.set(sx,1,sz);mesh.castShadow=true;mesh.receiveShadow=true;g.add(mesh);parent.add(g);return g}
+function createJoint(parent,name,r,sx=1,sy=1,sz=1){const g=new THREE.Group();g.name=name;const mesh=new THREE.Mesh(new THREE.SphereGeometry(1,20,14),makeMat());mesh.scale.set(r*sx,r*sy,r*sz);mesh.castShadow=true;mesh.receiveShadow=true;g.add(mesh);parent.add(g);return g}
+function createFoot(parent,name,len,width,height){const g=new THREE.Group();g.name=name;const mesh=new THREE.Mesh(new THREE.BoxGeometry(width,len,height),makeMat());mesh.position.y=len*.5;mesh.position.z=.1;mesh.castShadow=true;mesh.receiveShadow=true;g.add(mesh);parent.add(g);return g}
+function build(type){
+if(state.fig)state.engine.scene.remove(state.fig);
+const m=MODEL[type],f=new THREE.Group(),pelvis=new THREE.Group();
+pelvis.name="pelvis";pelvis.position.y=.22;
+const lower=createCapsule(pelvis,"pelvisBody",m.pelvis+.5,.36,1.05,.8);
+lower.position.y=.22;
+const torso=createCapsule(pelvis,"torso",m.torso,.39,1.18,.78);
+torso.position.y=m.pelvis+.42;
+const chest=createJoint(torso,"chest",.37,1.28,.75,1);
+chest.position.y=m.torso*.72;
+const neck=createCapsule(torso,"neck",m.neck,.12,1,1);
+neck.position.y=m.torso*.96;
+const head=createJoint(neck,"head",.29,1,.1,1);
+head.position.y=m.neck+.18;
+const shoulders=new THREE.Group();
+shoulders.name="shoulders";shoulders.position.y=m.torso*.8;torso.add(shoulders);
+for(const side of [-1,1]){
+  const s=side<0?"l":"r";
+  const sh=createCapsule(shoulders,s+"Shoulder",m.upperArm,.14,1,.9);
+  sh.position.set(side*.5,-.02,0);
+  const shJoint=createJoint(sh,s+"ShoulderJoint",.15,1.05,1,1);
+  shJoint.position.y=.06;
+  const el=createCapsule(sh,s+"Elbow",m.foreArm,.115,1,.88);
+  el.position.y=m.upperArm;
+  const elJoint=createJoint(el,s+"ElbowJoint",.13);
+  elJoint.position.y=.04;
+  const wr=createCapsule(el,s+"Wrist",.22,.085,.95,.85);
+  wr.position.y=m.foreArm;
+  const hand=createJoint(wr,s+"Hand",.12,.85,1.2,.7);
+  hand.position.y=.15;
+  const hip=createCapsule(pelvis,s+"Hip",m.thigh,.19,1.05,.9);
+  hip.position.x=side*.22;
+  hip.position.y=.05;
+  const hipJoint=createJoint(hip,s+"HipJoint",.2,1.08,.9,1);
+  hipJoint.position.y=.02;
+  const kn=createCapsule(hip,s+"Knee",m.shin,.16,1,.9);
+  kn.position.y=m.thigh;
+  const knJoint=createJoint(kn,s+"KneeJoint",.15,1.05,1,1);
+  knJoint.position.y=.05;
+  const an=createCapsule(kn,s+"Ankle",.22,.1,.9,.9);
+  an.position.y=m.shin;
+  const foot=createFoot(an,s+"Foot",.46,.2,.16);
+  foot.position.y=.02;
+  foot.rotation.z=Math.PI/2;
+}
+const parts={
+ torso,
+ head,
+ lShoulder:shoulders.children[0],
+ lElbow:shoulders.children[0].children.find(x=>x.name==="lElbow"),
+ lWrist:shoulders.children[0].children.find(x=>x.name==="lElbow")?.children.find(x=>x.name==="lWrist"),
+ rShoulder:shoulders.children[2],
+ rElbow:shoulders.children[2].children.find(x=>x.name==="rElbow"),
+ rWrist:shoulders.children[2].children.find(x=>x.name==="rElbow")?.children.find(x=>x.name==="rWrist"),
+ lHip:pelvis.children.find(x=>x.name==="lHip"),
+ rHip:pelvis.children.find(x=>x.name==="rHip")
+};
+parts.lKnee=parts.lHip?.children.find(x=>x.name==="lKnee");
+parts.rKnee=parts.rHip?.children.find(x=>x.name==="rKnee");
+parts.lAnkle=parts.lKnee?.children.find(x=>x.name==="lAnkle");
+parts.rAnkle=parts.rKnee?.children.find(x=>x.name==="rAnkle");
+f.userData.parts=parts;state.fig=f;state.model=type;f.position.y=.02;state.engine.scene.add(f);
+$("#status").textContent="Ready";$("#status").className="status ready";
+qsa("[data-model]").forEach(b=>b.classList.toggle("active",b.dataset.model===type));
+fitCamera();refreshAxis()}
 function setPreset(name){Object.values(state.fig.userData.parts).filter(Boolean).forEach(p=>p.rotation.set(0,0,0));presets[name](state.fig);clampFigure();fitCamera();refreshAxis();toast(name)}
 function randomPose(){for(const j of Object.keys(LIMITS)){for(const a of ["bend","tilt","turn"]){const p=part(j);if(!p)continue;const [min,max]=dynamicLimit(j,a);setV(state.fig,j,a,THREE.MathUtils.lerp(min,max,Math.random()))}}clampFigure();refreshAxis();toast("Random pose")}
 function fitCamera(){const b=new THREE.Box3().setFromObject(state.fig),s=b.getSize(new THREE.Vector3()),c=b.getCenter(new THREE.Vector3());state.engine.controls.target.copy(c);const d=Math.max(s.y/(2*Math.tan(THREE.MathUtils.degToRad(state.engine.camera.fov/2))),s.x*1.7);state.engine.camera.position.set(c.x,c.y,c.z+d*1.35);state.engine.controls.update()}
