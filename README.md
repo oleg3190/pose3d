@@ -4,7 +4,7 @@ A single-page personal 3D pose reference editor.
 
 ## Run
 
-You can open `index.html` directly in a browser or serve the folder with `./serve.sh`. The editor bundles a local Three.js UMD build, so the page can run without an external JavaScript CDN.
+You can open `index.html` directly in a browser or serve the folder with `./serve.sh`. If port 4173 is busy, the script automatically selects the next free port. You can also pass a starting port, for example `./serve.sh 8080`. The editor bundles a local Three.js UMD build, so the page can run without an external JavaScript CDN.
 
 For a local HTTP run:
 
@@ -12,7 +12,7 @@ For a local HTTP run:
 sh ./serve.sh
 ```
 
-Then open `http://127.0.0.1:4173/`.
+The script prints the exact URL to open.
 
 ## Features
 
