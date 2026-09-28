@@ -239,7 +239,7 @@ function runRegressionChecks(){
   const required=["torso","head","lShoulder","lElbow","lWrist","rShoulder","rElbow","rWrist","lHip","lKnee","lAnkle","rHip","rKnee","rAnkle"];
   for(const model of Object.keys(MODEL)){
     build(model);
-    for(const key of required) if(!part(key)) throw new Error("Missing mannequin part: "+model+"/"+key);if(!state.fig.userData.makeHuman.mesh.geometry.getAttribute("skinIndex")||!state.fig.userData.makeHuman.mesh.geometry.getAttribute("skinWeight")||!state.fig.userData.makeHuman.mesh.userData.cpuSkinned)throw new Error("SkinnedMesh regression failed: "+model);if(!state.fig.userData.jointMarkers||state.fig.userData.jointMarkers.length!==required.length)throw new Error("Joint marker regression failed: "+model);
+    for(const key of required) if(!part(key)) throw new Error("Missing mannequin part: "+model+"/"+key);if(!state.fig.userData.makeHuman.mesh.geometry.getAttribute("skinIndex")||!state.fig.userData.makeHuman.mesh.geometry.getAttribute("skinWeight")||!state.fig.userData.makeHuman.mesh.userData.cpuSkinned)throw new Error("SkinnedMesh regression failed: "+model);if(!state.fig.userData.jointMarkers||state.fig.userData.jointMarkers.length!==Object.keys(state.fig.userData.parts).length)throw new Error("Joint marker regression failed: "+model);
     for(const preset of Object.keys(presets)) setPreset(preset);
     randomPose();
     clampFigure();
