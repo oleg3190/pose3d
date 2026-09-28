@@ -46,6 +46,7 @@ jobs:
         run: |
           BROWSER_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
           test -n "$BROWSER_PATH"
+          export BROWSER_PATH
           echo "BROWSER_PATH=$BROWSER_PATH" >> "$GITHUB_ENV"
           python3 -m http.server 4173 > /tmp/poselab-server.log 2>&1 &
           SERVER_PID=$!
