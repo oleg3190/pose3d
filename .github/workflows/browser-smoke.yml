@@ -21,15 +21,17 @@ jobs:
 
       - name: Static JavaScript checks
         run: |
-          test -s vendor/three.module.js
+          test -s vendor/three-legacy.min.js
           test -s vendor/OrbitControls.js
-          ! test -e vendor/three.min.js
-          grep -q './vendor/three.module.js' index.html
+          ! test -e vendor/three.module.js
+          grep -q './vendor/three-legacy.min.js' index.html
           grep -q './vendor/OrbitControls.js' index.html
           ! grep -Eq "from[[:space:]]+['\"]three['\"]" index.html
           grep -q 'getContext("webgl2"' index.html
-          ! grep -q 'getContext("webgl",' index.html
-          grep -q "WebGL2 unavailable" index.html
+          grep -q 'getContext("webgl",' index.html
+          grep -q 'webgl1' index.html
+          ! grep -q 'WebGL2 requires' index.html
+          ! grep -q 'WebGL 1 support was deprecated' vendor/three-legacy.min.js
           node <<'NODE'
           const fs = require('fs');
           const html = fs.readFileSync('index.html', 'utf8');
@@ -68,7 +70,7 @@ jobs:
           timeout 20s google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
             --enable-webgl --ignore-gpu-blocklist --enable-unsafe-swiftshader \
             --use-gl=angle --use-angle=swiftshader --virtual-time-budget=3000 \
-            --dump-dom http://127.0.0.1:4173/index.html > "$out"
+            --dump-dom "http://127.0.0.1:4173/index.html?webgl1=1" > "$out"
 
           grep -Eq 'id="status" class="status (ready|error)"' "$out" || {
             echo "Application did not reach a terminal status"
