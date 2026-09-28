@@ -58,7 +58,7 @@ jobs:
             const browser = await chromium.launch({
               headless: true,
               executablePath: process.env.BROWSER_PATH,
-              args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader']
+              args: ['--no-sandbox', '--enable-webgl', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader']
             });
             const errors = [];
 
@@ -72,7 +72,8 @@ jobs:
                 if (msg.type() === 'error') errors.push(`${url} console: ${msg.text()}`);
               });
 
-              await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+              await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+              await page.waitForTimeout(1000);
               await page.waitForSelector('#status.ready', { state: 'visible', timeout: 15000 });
 
               for (const selector of ['#random', '#save', '#reset', '#shuffle', '[data-preset="A-Pose"]']) {
