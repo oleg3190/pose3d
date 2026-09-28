@@ -53,7 +53,7 @@ label{display:block;color:var(--muted);font-size:11px;margin:10px 0 6px}select{w
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script src="./vendor/three-legacy.min.js"></script>
 <script type="module">
-const THREE=window.THREE;
+const THREE=globalThis.THREE;
 import { OrbitControls } from "./vendor/OrbitControls.js";
 
 const $=s=>document.querySelector(s), qsa=s=>[...document.querySelectorAll(s)];
