@@ -106,7 +106,7 @@ const chest=createJoint(torso,"chest",.37,1.28,.75,1);
 chest.position.y=m.torso*.72;
 const neck=createCapsule(torso,"neck",m.neck,.12,1,1);
 neck.position.y=m.torso*.96;
-const head=createJoint(neck,"head",.29,1,.1,1);
+const head=createJoint(neck,"head",.29,1,1.18,1);
 head.position.y=m.neck+.18;
 const shoulders=new THREE.Group();
 shoulders.name="shoulders";shoulders.position.y=m.torso*.8;torso.add(shoulders);
@@ -137,7 +137,7 @@ for(const side of [-1,1]){
   an.position.y=m.shin;
   const foot=createFoot(an,s+"Foot",.46,.2,.16);
   foot.position.y=.02;
-  foot.rotation.z=Math.PI/2;
+  foot.rotation.x=-Math.PI/2;
 }
 const parts={
  torso,
