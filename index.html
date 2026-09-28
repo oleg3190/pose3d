@@ -137,8 +137,7 @@ function loadMakeHumanMesh(){
   xhr.send();
   if((xhr.status&&xhr.status!==200)||!xhr.responseText)throw new Error("MakeHuman base mesh failed to load");
   const vertices=[],faces=[];
-  for(const line of xhr.responseText.split(/\r?
-/)){
+  for(const line of xhr.responseText.split(/\r?\n/)){
     if(line.startsWith("v ")){
       const a=line.trim().split(/\s+/);
       vertices.push([+a[1],+a[2],+a[3]]);
