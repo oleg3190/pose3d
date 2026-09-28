@@ -129,79 +129,108 @@ function createFoot(parent,name,len,width,height){
   mesh.scale.set(width/(height||1),1,1.35);mesh.position.z=.12;addMesh(g,mesh);
   parent.add(g);return g;
 }
-function build(type){
-if(state.fig)state.engine.scene.remove(state.fig);
-const m=MODEL[type],f=new THREE.Group(),pelvis=new THREE.Group();
-pelvis.name="pelvis";pelvis.position.y=.22;f.add(pelvis);
-const lower=createBody(pelvis,"pelvisBody",m.pelvis+.5,.38,.62);
-lower.position.y=.22;
-const torso=createBody(pelvis,"torso",m.torso,.43,.66);
-torso.position.y=m.pelvis+.42;
-const chest=createJoint(torso,"chest",.38,1.22,.78,1.02);
-chest.position.y=m.torso*.70;
-const neck=createCapsule(torso,"neck",m.neck,.12,1,1);
-neck.position.y=m.torso*.96;
-const head=createJoint(neck,"head",.29,1.02,1.20,.92);
-head.position.y=m.neck+.20;
-const jaw=createJoint(head,"jaw",.22,1.02,.72,.90);
-jaw.position.y=-.16;
-const shoulders=new THREE.Group();
-const shoulderParts={l:null,r:null},legParts={l:null,r:null};
-shoulders.name="shoulders";shoulders.position.y=m.torso*.8;torso.add(shoulders);
-for(const side of [-1,1]){
-  const s=side<0?"l":"r";
-  const sh=createCapsule(shoulders,s+"Shoulder",m.upperArm,.14,1,.9);
-  sh.position.set(side*.5,-.02,0);
-  const shJoint=createJoint(sh,s+"ShoulderJoint",.15,1.05,1,1);
-  shJoint.position.y=.06;
-  const el=createCapsule(sh,s+"Elbow",m.foreArm,.115,1,.88);
-  el.position.y=m.upperArm;
-  const elJoint=createJoint(el,s+"ElbowJoint",.13);
-  elJoint.position.y=.04;
-  const wr=createCapsule(el,s+"Wrist",.22,.085,.95,.85);
-  wr.position.y=m.foreArm;
-  const hand=createJoint(wr,s+"Hand",.13,.86,1.28,.72);
-  hand.position.y=.16;
-  const thumb=createJoint(hand,s+"Thumb",.055,.75,.8,1.25);
-  thumb.position.set(side*.09,.02,.07);
-  thumb.rotation.z=side*.45;
-  const hip=createCapsule(pelvis,s+"Hip",m.thigh,.20,1.08,.92);
-  hip.position.x=side*.22;
-  hip.position.y=.05;
-  const hipJoint=createJoint(hip,s+"HipJoint",.2,1.08,.9,1);
-  hipJoint.position.y=.02;
-  const kn=createCapsule(hip,s+"Knee",m.shin,.17,1.02,.92);
-  kn.position.y=m.thigh;
-  const knJoint=createJoint(kn,s+"KneeJoint",.15,1.05,1,1);
-  knJoint.position.y=.05;
-  const an=createCapsule(kn,s+"Ankle",.22,.1,.9,.9);
-  an.position.y=m.shin;
-  const foot=createFoot(an,s+"Foot",.48,.22,.18);
-  foot.position.y=.02;
-  foot.rotation.x=-Math.PI/2;
-  shoulderParts[s]={sh,el,wr};
-  legParts[s]={hip,kn,an};
+let makeHumanCache=null;
+function loadMakeHumanMesh(){
+  if(makeHumanCache)return makeHumanCache;
+  const xhr=new XMLHttpRequest();
+  xhr.open("GET","./assets/makehuman-base.obj",false);
+  xhr.send();
+  if((xhr.status&&xhr.status!==200)||!xhr.responseText)throw new Error("MakeHuman base mesh failed to load");
+  const vertices=[],faces=[];
+  for(const line of xhr.responseText.split(/\r?\n/)){
+    if(line.startsWith("v ")){
+      const a=line.trim().split(/\s+/);
+      vertices.push([+a[1],+a[2],+a[3]]);
+    }else if(line.startsWith("f ")){
+      const ids=line.trim().split(/\s+/).slice(1).map(v=>parseInt(v.split("/")[0],10)-1).filter(Number.isInteger);
+      for(let i=1;i<ids.length-1;i++)faces.push([ids[0],ids[i],ids[i+1]]);
+    }
+  }
+  if(vertices.length<1000||faces.length<1000)throw new Error("Invalid MakeHuman OBJ");
+  makeHumanCache={vertices,faces};
+  return makeHumanCache;
 }
-const parts={
- torso,
- head,
- lShoulder:shoulderParts.l.sh,
- lElbow:shoulderParts.l.el,
- lWrist:shoulderParts.l.wr,
- rShoulder:shoulderParts.r.sh,
- rElbow:shoulderParts.r.el,
- rWrist:shoulderParts.r.wr,
- lHip:legParts.l.hip,
- rHip:legParts.r.hip,
- lKnee:legParts.l.kn,
- rKnee:legParts.r.kn,
- lAnkle:legParts.l.an,
- rAnkle:legParts.r.an
+const MH_SCALE=.25;
+const MH_PIVOTS={
+  torso:[0,0,0],
+  head:[0,6.65,0],
+  lShoulder:[-1.02,4.55,0],rShoulder:[1.02,4.55,0],
+  lElbow:[-2.42,2.55,0],rElbow:[2.42,2.55,0],
+  lWrist:[-3.42,.62,0],rWrist:[3.42,.62,0],
+  lHip:[-.62,-.55,0],rHip:[.62,-.55,0],
+  lKnee:[-.72,-4.25,0],rKnee:[.72,-4.25,0],
+  lAnkle:[-.70,-7.25,0],rAnkle:[.70,-7.25,0]
 };
-f.userData.parts=parts;state.fig=f;state.model=type;f.position.y=.02;state.engine.scene.add(f);
-$("#status").textContent="Ready";$("#status").className="status ready";
-qsa("[data-model]").forEach(b=>b.classList.toggle("active",b.dataset.model===type));
-fitCamera();refreshAxis()}
+function classifyMHFace(c){
+  const x=c[0],y=c[1],ax=Math.abs(x);
+  if(y>6.25&&ax<1.8)return "head";
+  if(ax>1.0&&y>4.05)return x<0?"lShoulder":"rShoulder";
+  if(ax>1.0&&y>2.0)return x<0?"lElbow":"rElbow";
+  if(ax>1.0&&y>-.05)return x<0?"lWrist":"rWrist";
+  if(y<-.65&&ax>.42&&ax<1.55){
+    if(y<=-7.05)return x<0?"lAnkle":"rAnkle";
+    if(y<=-4.0)return x<0?"lKnee":"rKnee";
+    return x<0?"lHip":"rHip";
+  }
+  return "torso";
+}
+function makeMHSegment(name,vertices,faces){
+  const pivot=MH_PIVOTS[name]||MH_PIVOTS.torso,positions=[];
+  for(const f of faces){
+    for(const idx of f){
+      const v=vertices[idx];
+      positions.push((v[0]-pivot[0])*MH_SCALE,(v[1]-pivot[1])*MH_SCALE,(v[2]-pivot[2])*MH_SCALE);
+    }
+  }
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));
+  geometry.computeVertexNormals();
+  const mesh=new THREE.Mesh(geometry,makeMat());
+  mesh.castShadow=true;mesh.receiveShadow=true;
+  return mesh;
+}
+function buildMakeHumanFigure(type){
+  const {vertices,faces}=loadMakeHumanMesh();
+  const buckets=Object.fromEntries(Object.keys(MH_PIVOTS).map(k=>[k,[]]));
+  for(const f of faces){
+    const c=[0,0,0];
+    for(const i of f){c[0]+=vertices[i][0];c[1]+=vertices[i][1];c[2]+=vertices[i][2]}
+    c[0]/=3;c[1]/=3;c[2]/=3;
+    buckets[classifyMHFace(c)].push(f);
+  }
+  const f=new THREE.Group(),root=new THREE.Group();
+  f.name="MakeHuman";root.name="pelvis";f.add(root);
+  const groups={torso:root};
+  const torso=new THREE.Group();torso.name="torso";root.add(torso);groups.torso=torso;
+  groups.head=new THREE.Group();groups.head.name="head";groups.head.position.set(0,(MH_PIVOTS.head[1]-MH_PIVOTS.torso[1])*MH_SCALE,0);torso.add(groups.head);
+  const chain=(side,parentName,elName,wrName,hipName,knName,anName)=>{
+    const shoulder=new THREE.Group();shoulder.name=side+"Shoulder";shoulder.position.set((MH_PIVOTS[side+"Shoulder"][0]-MH_PIVOTS.torso[0])*MH_SCALE,(MH_PIVOTS[side+"Shoulder"][1]-MH_PIVOTS.torso[1])*MH_SCALE,0);torso.add(shoulder);
+    const elbow=new THREE.Group();elbow.name=side+"Elbow";elbow.position.set((MH_PIVOTS[elName][0]-MH_PIVOTS[side+"Shoulder"][0])*MH_SCALE,(MH_PIVOTS[elName][1]-MH_PIVOTS[side+"Shoulder"][1])*MH_SCALE,0);shoulder.add(elbow);
+    const wrist=new THREE.Group();wrist.name=side+"Wrist";wrist.position.set((MH_PIVOTS[wrName][0]-MH_PIVOTS[elName][0])*MH_SCALE,(MH_PIVOTS[wrName][1]-MH_PIVOTS[elName][1])*MH_SCALE,0);elbow.add(wrist);
+    groups[side+"Shoulder"]=shoulder;groups[side+"Elbow"]=elbow;groups[side+"Wrist"]=wrist;
+    const hip=new THREE.Group();hip.name=side+"Hip";hip.position.set((MH_PIVOTS[hipName][0]-MH_PIVOTS.torso[0])*MH_SCALE,(MH_PIVOTS[hipName][1]-MH_PIVOTS.torso[1])*MH_SCALE,0);root.add(hip);
+    const knee=new THREE.Group();knee.name=side+"Knee";knee.position.set((MH_PIVOTS[knName][0]-MH_PIVOTS[hipName][0])*MH_SCALE,(MH_PIVOTS[knName][1]-MH_PIVOTS[hipName][1])*MH_SCALE,0);hip.add(knee);
+    const ankle=new THREE.Group();ankle.name=side+"Ankle";ankle.position.set((MH_PIVOTS[anName][0]-MH_PIVOTS[knName][0])*MH_SCALE,(MH_PIVOTS[anName][1]-MH_PIVOTS[knName][1])*MH_SCALE,0);knee.add(ankle);
+    groups[side+"Hip"]=hip;groups[side+"Knee"]=knee;groups[side+"Ankle"]=ankle;
+  };
+  chain("l","lShoulder","lElbow","lWrist","lHip","lKnee","lAnkle");
+  chain("r","rShoulder","rElbow","rWrist","rHip","rKnee","rAnkle");
+  for(const [name,group] of Object.entries(groups)){
+    if(buckets[name]?.length)group.add(makeMHSegment(name,vertices,buckets[name]));
+  }
+  const typeScale=type==="child"?0.82:type==="female"?0.98:type==="male"?1.02:1;
+  f.scale.set(typeScale,typeScale,typeScale);
+  f.userData.parts=groups;
+  return f;
+}
+function build(type){
+  if(state.fig)state.engine.scene.remove(state.fig);
+  const f=buildMakeHumanFigure(type);
+  state.fig=f;state.model=type;f.position.y=.02;state.engine.scene.add(f);
+  $("#status").textContent="Ready";$("#status").className="status ready";
+  qsa("[data-model]").forEach(b=>b.classList.toggle("active",b.dataset.model===type));
+  fitCamera();refreshAxis();
+}
 function setPreset(name){Object.values(state.fig.userData.parts).filter(Boolean).forEach(p=>p.rotation.set(0,0,0));presets[name](state.fig);clampFigure();fitCamera();refreshAxis();toast(name)}
 function randomPose(){for(const j of Object.keys(LIMITS)){for(const a of ["bend","tilt","turn"]){const p=part(j);if(!p)continue;const [min,max]=dynamicLimit(j,a);setV(state.fig,j,a,THREE.MathUtils.lerp(min,max,Math.random()))}}clampFigure();refreshAxis();toast("Random pose")}
 function fitCamera(){const b=new THREE.Box3().setFromObject(state.fig),s=b.getSize(new THREE.Vector3()),c=b.getCenter(new THREE.Vector3());state.engine.controls.target.copy(c);const d=Math.max(s.y/(2*Math.tan(THREE.MathUtils.degToRad(state.engine.camera.fov/2))),s.x*1.7);state.engine.camera.position.set(c.x,c.y,c.z+d*1.35);state.engine.controls.update()}
