@@ -26,6 +26,7 @@ jobs:
           ! test -e vendor/three.module.js
           grep -q './vendor/three-legacy.min.js' index.html
           grep -q './vendor/OrbitControls.js' index.html
+          grep -q 'globalThis.OrbitControls=OrbitControls' vendor/OrbitControls.js
           ! grep -Eq "from[[:space:]]+['\"]three['\"]" index.html
           grep -q 'getContext("webgl2"' index.html
           grep -q 'getContext("webgl",' index.html
@@ -79,11 +80,7 @@ jobs:
             exit 1
           }
 
-          if grep -q 'WebGL unavailable' "$out"; then
-            echo "Application loaded; WebGL is unavailable in the headless environment."
-          else
-            grep -q 'id="status" class="status ready"' "$out"
-            echo "Application loaded with WebGL."
-          fi
+          grep -q 'id="status" class="status ready"' "$out"
+          echo "Application loaded with WebGL1 compatibility path."
 
           rm -f "$out"
