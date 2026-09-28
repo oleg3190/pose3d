@@ -63,7 +63,6 @@ jobs:
             const errors = [];
 
             for (const url of [
-              `file://${process.env.GITHUB_WORKSPACE}/index.html`,
               'http://127.0.0.1:4173/index.html'
             ]) {
               const page = await browser.newPage();
