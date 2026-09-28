@@ -51,6 +51,22 @@ label{display:block;color:var(--muted);font-size:11px;margin:10px 0 6px}select{w
 </main>
 <section id="features"></section>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script>
+window.addEventListener("error",event=>{
+  const el=document.querySelector("#status");
+  if(!el)return;
+  const message=event.error?.message||event.message||"Unknown runtime error";
+  el.textContent="Runtime error: "+message;
+  el.className="status error";
+});
+window.addEventListener("unhandledrejection",event=>{
+  const el=document.querySelector("#status");
+  if(!el)return;
+  const reason=event.reason?.message||String(event.reason||"Unknown promise rejection");
+  el.textContent="Runtime error: "+reason;
+  el.className="status error";
+});
+</script>
 <script src="./vendor/three-legacy.min.js"></script>
 <script src="./vendor/OrbitControls.js"></script>
 <script>
