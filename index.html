@@ -109,6 +109,7 @@ neck.position.y=m.torso*.96;
 const head=createJoint(neck,"head",.29,1,1.18,1);
 head.position.y=m.neck+.18;
 const shoulders=new THREE.Group();
+const shoulderParts={l:null,r:null},legParts={l:null,r:null};
 shoulders.name="shoulders";shoulders.position.y=m.torso*.8;torso.add(shoulders);
 for(const side of [-1,1]){
   const s=side<0?"l":"r";
@@ -138,23 +139,25 @@ for(const side of [-1,1]){
   const foot=createFoot(an,s+"Foot",.46,.2,.16);
   foot.position.y=.02;
   foot.rotation.x=-Math.PI/2;
+  shoulderParts[s]={sh,el,wr};
+  legParts[s]={hip,kn,an};
 }
 const parts={
  torso,
  head,
- lShoulder:shoulders.children[0],
- lElbow:shoulders.children[0].children.find(x=>x.name==="lElbow"),
- lWrist:shoulders.children[0].children.find(x=>x.name==="lElbow")?.children.find(x=>x.name==="lWrist"),
- rShoulder:shoulders.children[2],
- rElbow:shoulders.children[2].children.find(x=>x.name==="rElbow"),
- rWrist:shoulders.children[2].children.find(x=>x.name==="rElbow")?.children.find(x=>x.name==="rWrist"),
- lHip:pelvis.children.find(x=>x.name==="lHip"),
- rHip:pelvis.children.find(x=>x.name==="rHip")
+ lShoulder:shoulderParts.l.sh,
+ lElbow:shoulderParts.l.el,
+ lWrist:shoulderParts.l.wr,
+ rShoulder:shoulderParts.r.sh,
+ rElbow:shoulderParts.r.el,
+ rWrist:shoulderParts.r.wr,
+ lHip:legParts.l.hip,
+ rHip:legParts.r.hip,
+ lKnee:legParts.l.kn,
+ rKnee:legParts.r.kn,
+ lAnkle:legParts.l.an,
+ rAnkle:legParts.r.an
 };
-parts.lKnee=parts.lHip?.children.find(x=>x.name==="lKnee");
-parts.rKnee=parts.rHip?.children.find(x=>x.name==="rKnee");
-parts.lAnkle=parts.lKnee?.children.find(x=>x.name==="lAnkle");
-parts.rAnkle=parts.rKnee?.children.find(x=>x.name==="rAnkle");
 f.userData.parts=parts;state.fig=f;state.model=type;f.position.y=.02;state.engine.scene.add(f);
 $("#status").textContent="Ready";$("#status").className="status ready";
 qsa("[data-model]").forEach(b=>b.classList.toggle("active",b.dataset.model===type));
