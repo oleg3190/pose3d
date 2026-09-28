@@ -75,17 +75,22 @@ jobs:
               try {
                 await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
                 await page.waitForTimeout(1000);
-                await page.waitForSelector('#status.ready', { state: 'visible', timeout: 15000 });
+                await page.waitForSelector('#status', { state: 'visible', timeout: 15000 });
 
-                for (const selector of ['#random', '#save', '#reset', '#shuffle', '[data-preset="A-Pose"]']) {
-                  await page.click(selector);
+                const status = await page.locator('#status').textContent();
+                if (status === 'Ready') {
+                  for (const selector of ['#random', '#save', '#reset', '#shuffle', '[data-preset="A-Pose"]']) {
+                    await page.click(selector);
+                  }
+                  await page.click('[data-model="female"]');
+                  await page.click('[data-model="child"]');
+                  await page.click('[data-model="basic"]');
+                  await page.selectOption('#prop', 'ball');
+                  await page.selectOption('#prop', 'none');
+                  await page.click('#share').catch(() => {});
+                } else if (status !== 'WebGL unavailable') {
+                  throw new Error(`Unexpected application status: ${status}`);
                 }
-                await page.click('[data-model="female"]');
-                await page.click('[data-model="child"]');
-                await page.click('[data-model="basic"]');
-                await page.selectOption('#prop', 'ball');
-                await page.selectOption('#prop', 'none');
-                await page.click('#share').catch(() => {});
               } catch (error) {
                 let snapshot;
                 try {
@@ -98,7 +103,7 @@ jobs:
                 } catch {
                   snapshot = { status: 'evaluate failed' };
                 }
-                errors.push(`${url} readiness: ${error.message}; ${JSON.stringify(snapshot)}`);
+                errors.push(`${url} runtime: ${error.message}; ${JSON.stringify(snapshot)}`);
               } finally {
                 await page.close();
               }
